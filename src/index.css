@@ -1,0 +1,292 @@
+@import "tailwindcss";
+
+/* ===== Root / Body ===== */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', 'Noto Sans JP', sans-serif;
+  background: #09090b;
+  overflow: hidden;
+}
+
+/* ===== Canvas Root ===== */
+.canvas-root {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #09090b;
+  user-select: none;
+  position: relative;
+  cursor: grab;
+}
+.canvas-root:active {
+  cursor: grabbing;
+}
+
+/* Background gradient */
+.canvas-bg {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, #18181b 0%, #09090b 60%, #000 100%);
+  pointer-events: none;
+}
+
+/* ===== Draggable Inner Canvas ===== */
+.canvas-inner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: row;
+  gap: 2rem;
+  padding: 8rem;
+}
+
+/* ===== Column ===== */
+.canvas-column {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* ===== Drag to Discover hint ===== */
+.discover-hint {
+  position: absolute;
+  top: 38%;
+  left: 28%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+.discover-icon {
+  width: 4rem;
+  height: 4rem;
+  color: rgba(255, 255, 255, 0.15);
+  animation: bounce 2s infinite;
+}
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.discover-text {
+  font-size: 3.5rem;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  background: linear-gradient(135deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.07) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-align: center;
+}
+
+/* ===== Card ===== */
+.card-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 1.25rem;
+  border-radius: 1.5rem;
+  overflow: hidden;
+  cursor: pointer;
+  width: 16rem;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.card-wrapper:hover {
+  transform: scale(1.02) translateY(-4px);
+  box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.8);
+}
+
+/* Card background image */
+.card-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.55;
+  transition: transform 0.7s ease;
+}
+.card-wrapper:hover .card-bg {
+  transform: scale(1.1);
+}
+
+/* Gradient overlay */
+.card-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.35) 50%, transparent 100%);
+}
+
+/* Mouse-tracking spotlight */
+.card-spotlight {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 10;
+  background: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255,255,255,0.14), transparent 40%);
+}
+.card-wrapper:hover .card-spotlight {
+  opacity: 1;
+}
+
+/* Card content */
+.card-content {
+  position: relative;
+  z-index: 20;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.card-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: rgba(255,255,255,0.92);
+  text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+  letter-spacing: 0.01em;
+}
+.card-author {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.55);
+  font-weight: 500;
+}
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+.card-tag {
+  padding: 0.2rem 0.65rem;
+  font-size: 0.65rem;
+  border-radius: 9999px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* ===== Fixed UI Elements ===== */
+
+/* Logo */
+.ui-logo {
+  position: fixed;
+  top: 2rem;
+  left: 2rem;
+  z-index: 50;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+.ui-logo-jp {
+  font-size: 1.6rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: #fff;
+  text-shadow: 0 2px 16px rgba(0,0,0,0.8);
+}
+.ui-logo-red {
+  font-size: 1.6rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: #ef4444;
+  font-family: serif;
+  text-shadow: 0 2px 16px rgba(0,0,0,0.8);
+}
+
+/* Nav */
+.ui-nav {
+  position: fixed;
+  top: 2rem;
+  right: 2rem;
+  z-index: 50;
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+.ui-nav-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.7);
+  transition: color 0.2s ease;
+  padding: 0;
+}
+.ui-nav-btn:hover {
+  color: #fff;
+}
+
+/* Bottom glassmorphism bar */
+.ui-bar-wrapper {
+  position: fixed;
+  bottom: 2.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+}
+.ui-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.4rem;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.ui-bar-btn-active {
+  padding: 0.75rem 1.5rem;
+  border-radius: 9999px;
+  background: #fff;
+  color: #000;
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  transition: transform 0.15s ease;
+}
+.ui-bar-btn-active:hover {
+  transform: scale(1.04);
+}
+.ui-bar-btn-active:active {
+  transform: scale(0.96);
+}
+.ui-bar-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 9999px;
+  background: transparent;
+  color: rgba(255,255,255,0.72);
+  font-weight: 500;
+  font-size: 0.8rem;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+  white-space: nowrap;
+}
+.ui-bar-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+}

@@ -1,0 +1,192 @@
+﻿🌌 Infinite Canvas UI 구현 요약 문서
+To: 안티그래비티 (Anti-Gravity)
+Subject: 무한 캔버스 기반 인터랙티브 갤러리 UI/UX 구현 내용 전달
+1. 개요 (Overview)
+제공된 레퍼런스 영상의 트렌디한 웹 인터랙션을 분석하여, 2D 평면 공간을 자유롭게 탐험할 수 있는 '무한 캔버스(Infinite Canvas)' 형태의 포트폴리오/콘텐츠 탐색 UI를 React 기반으로 구현했습니다.
+단순한 스크롤 방식을 벗어나 사용자에게 높은 몰입감(Immersive Experience)과 능동적인 탐색의 재미를 제공하는 데 초점을 맞추었습니다.
+2. 핵심 UI/UX 및 기술 포인트 (Key Features)
+① 무한 공간 탐색 (Infinite Spatial Navigation)
+* UX 의도: 뷰포트를 고정하고 거대한 컨테이너를 마우스로 끌어서 이동하는 방식을 통해, 사용자가 광활한 공간을 탐험하는 듯한 느낌을 줍니다.
+* Tech 스펙: * 마우스 이벤트(mousedown, mousemove, mouseup)를 활용하여 드래그 좌표를 계산합니다.
+   * transform: translate3d(x, y) 및 willChange: transform 속성을 사용하여 브라우저 하드웨어 가속을 유도, 끊김 없이 부드러운 패닝(Panning)을 구현했습니다.
+② 마우스 추적 스포트라이트 (Mouse-tracking Spotlight)
+* UX 의도: 카드 위에 마우스를 올렸을 때, 커서의 위치를 따라 부드러운 빛이 따라다니는 효과를 주어 정적인 요소에 생동감과 즉각적인 피드백을 부여합니다.
+* Tech 스펙: * <Card> 컴포넌트 내에서 onMouseMove 이벤트를 수신하여 커서의 로컬 좌표(x, y)를 계산합니다.
+   * 계산된 좌표를 CSS 변수(--mouse-x, --mouse-y)로 DOM에 전달하고, CSS radial-gradient를 통해 동적인 하이라이트 효과를 렌더링합니다.
+③ 비대칭 그리드 레이아웃 (Staggered Grid Layout)
+* UX 의도: 딱딱한 바둑판 배열을 탈피하고, 각 열(Column)의 높낮이를 엇갈리게(Staggered) 배치하여 유기적이고 리듬감 있는 갤러리 뷰를 연출합니다.
+* Tech 스펙: * 데이터를 일정 갯수(예: 5개) 단위의 컬럼으로 분할한 뒤, 짝수/홀수 인덱스에 따라 marginTop 오프셋을 다르게 적용했습니다.
+④ 글래스모피즘 & 심도 (Glassmorphism & Z-Depth)
+* UX 의도: 하단 컨트롤 바 및 상단 네비게이션에 반투명한 블러 효과를 적용하여, 배경의 캔버스가 움직일 때 UI 요소가 공중에 떠 있는 듯한 공간적 깊이감을 강조합니다.
+* Tech 스펙: Tailwind CSS의 backdrop-blur 및 반투명 배경색(bg-white/10) 유틸리티를 활용했습니다.
+3. 전체 코드 (React 단일 파일 구성)
+앱은 별도의 추가 라이브러리 없이 React Core (useState, useRef, useEffect)와 Tailwind CSS만으로 작성되었으며, App.jsx 단일 파일에 모든 로직이 포함되어 있어 즉시 적용 및 테스트가 가능합니다.
+import React, { useState, useRef, useEffect } from 'react';
+
+// --- [Mock Data] ----------------------------------------------------
+const CARDS_DATA = Array.from({ length: 40 }).map((_, i) => ({
+ id: i,
+ title: [
+   "日本昔ばなし", "雪おんな", "かぐや姫", "浦島太郎", 
+   "桃太郎", "一寸法師", "さるかに合戦", "鶴の恩返し",
+   "おむすびころりん", "金太郎", "花咲か爺さん", "かちかち山"
+ ][Math.floor(Math.random() * 12)] + ` Vol.${Math.floor(Math.random() * 10) + 1}`,
+ tags: [
+   ["神話", "アクション"], ["ドラマ", "悲劇"], ["ファンタジー", "ロマンス"],
+   ["コメディ", "日常"], ["ホラー", "サスペンス"], ["歴史", "感動"]
+ ][Math.floor(Math.random() * 6)],
+ author: ["スタジオジブリ風", "新海誠スタイル", "鳥山明リスペクト", "手塚治虫オマージュ"][Math.floor(Math.random() * 4)],
+ color: `hsl(${Math.random() * 360}, 60%, 20%)`,
+ height: Math.random() > 0.7 ? 'h-96' : 'h-72',
+ imageUrl: `https://picsum.photos/seed/${i + 100}/400/600`
+}));
+
+// --- [Components] ---------------------------------------------------
+
+// 1. 개별 카드 컴포넌트 (Mouse-tracking Spotlight)
+const Card = ({ data }) => {
+ const cardRef = useRef(null);
+
+ const handleMouseMove = (e) => {
+   if (!cardRef.current) return;
+   const rect = cardRef.current.getBoundingClientRect();
+   const x = e.clientX - rect.left;
+   const y = e.clientY - rect.top;
+   
+   cardRef.current.style.setProperty('--mouse-x', `${x}px`);
+   cardRef.current.style.setProperty('--mouse-y', `${y}px`);
+ };
+
+ return (
+   <div
+     ref={cardRef}
+     onMouseMove={handleMouseMove}
+     className={`relative flex flex-col justify-end p-5 rounded-3xl overflow-hidden cursor-pointer group transition-transform duration-300 hover:scale-[1.02] hover:-translate-y-1 ${data.height} w-64 shrink-0`}
+     style={{
+       backgroundColor: data.color,
+       boxShadow: '0 10px 30px -10px rgba(0,0,0,0.5)',
+       border: '1px solid rgba(255, 255, 255, 0.05)'
+     }}
+   >
+     <div 
+       className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110 opacity-60"
+       style={{ backgroundImage: `url(${data.imageUrl})` }}
+     />
+     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+
+     <div 
+       className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"
+       style={{
+         background: 'radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.15), transparent 40%)'
+       }}
+     />
+     
+     <div className="relative z-20 text-white flex flex-col gap-2">
+       <h3 className="text-xl font-bold leading-tight text-white/90 drop-shadow-md tracking-wide">
+         {data.title}
+       </h3>
+       <p className="text-xs text-white/60 font-medium">Author: {data.author}</p>
+       <div className="flex flex-wrap gap-2 mt-2">
+         {data.tags.map((tag, idx) => (
+           <span key={idx} className="px-2.5 py-1 text-[10px] rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white/80">
+             {tag}
+           </span>
+         ))}
+       </div>
+     </div>
+   </div>
+ );
+};
+
+// 2. 메인 애플리케이션 (Infinite Drag Canvas)
+export default function App() {
+ const containerRef = useRef(null);
+ const [isDragging, setIsDragging] = useState(false);
+ const [position, setPosition] = useState({ x: -400, y: -200 });
+ const dragStart = useRef({ x: 0, y: 0 });
+
+ const handleMouseDown = (e) => {
+   if (e.target.closest('button') || e.target.closest('a')) return;
+   setIsDragging(true);
+   dragStart.current = { x: e.clientX - position.x, y: e.clientY - position.y };
+   document.body.style.cursor = 'grabbing';
+ };
+
+ const handleMouseMove = (e) => {
+   if (!isDragging) return;
+   setPosition({ 
+     x: e.clientX - dragStart.current.x, 
+     y: e.clientY - dragStart.current.y 
+   });
+ };
+
+ const handleMouseUp = () => {
+   setIsDragging(false);
+   document.body.style.cursor = 'default';
+ };
+
+ useEffect(() => {
+   if (isDragging) {
+     window.addEventListener('mousemove', handleMouseMove);
+     window.addEventListener('mouseup', handleMouseUp);
+   } else {
+     window.removeEventListener('mousemove', handleMouseMove);
+     window.removeEventListener('mouseup', handleMouseUp);
+   }
+   return () => {
+     window.removeEventListener('mousemove', handleMouseMove);
+     window.removeEventListener('mouseup', handleMouseUp);
+   };
+ }, [isDragging]);
+
+ const columns = [];
+ for (let i = 0; i < CARDS_DATA.length; i += 5) {
+   columns.push(CARDS_DATA.slice(i, i + 5));
+ }
+
+ return (
+   <div 
+     className="w-screen h-screen overflow-hidden bg-zinc-950 select-none relative font-sans text-zinc-100"
+     onMouseDown={handleMouseDown}
+   >
+     <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-900 via-zinc-950 to-black pointer-events-none" />
+
+     {/* Draggable Canvas */}
+     <div 
+       ref={containerRef}
+       className="absolute top-0 left-0 flex gap-8 p-32 transition-transform duration-75 ease-out"
+       style={{ transform: `translate3d(${position.x}px, ${position.y}px, 0)`, willChange: 'transform' }}
+     >
+       <div className="absolute top-[40%] left-[30%] -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0 flex flex-col items-center">
+         <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white/40 to-white/10 tracking-tighter">
+           Drag to<br/>Discover
+         </h1>
+       </div>
+
+       {columns.map((col, colIdx) => (
+         <div key={colIdx} className="flex flex-col gap-8" style={{ marginTop: colIdx % 2 === 0 ? '0px' : '100px' }}>
+           {col.map(card => <Card key={card.id} data={card} />)}
+         </div>
+       ))}
+     </div>
+
+     {/* Fixed UI */}
+     <div className="fixed top-8 left-8 z-50 pointer-events-none">
+       <h1 className="text-3xl font-black tracking-tighter text-white drop-shadow-lg">
+         日本<br/><span className="text-red-500 font-serif">昔ばなし</span>
+       </h1>
+     </div>
+
+     <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50">
+       <div className="flex items-center gap-2 p-2 bg-white/10 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl">
+         <button className="px-6 py-3 rounded-full bg-white text-black font-bold text-sm tracking-wide shadow-lg hover:scale-105 active:scale-95 transition-transform">
+           ALL LIST
+         </button>
+         <button className="px-6 py-3 rounded-full text-white/80 hover:bg-white/10 hover:text-white font-medium text-sm transition-all">
+           作品別まとめ (By Work)
+         </button>
+       </div>
+     </div>
+   </div>
+ );
+}
