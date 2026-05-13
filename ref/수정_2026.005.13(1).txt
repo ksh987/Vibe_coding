@@ -1,3 +1,33 @@
+﻿🌌 Infinite Canvas UI V6 구현 요약 문서 (최종 통합본)
+To: 안티그래비티 (Anti-Gravity)
+Subject: 무한 캔버스 UI V6 최종 업데이트 - 뷰 전환, 상세 모달, 커스텀 로고 및 리스트 인터랙션 적용안
+1. 개요 (Overview)
+기존 무한 캔버스(Grid View) 기반의 탐색 경험을 유지하면서, 사용자 편의를 위한 세로형 리스트 뷰(List View) 전환 기능과 상세 정보 모달(Detail Modal) 창을 추가한 최종 V6 버전입니다.
+또한, 레퍼런스를 반영한 Y2K 메탈릭 타이포그래피 로고 적용 및 화면 밀도(Gap) 최적화, 마우스 호버(Hover) 시의 직관적인 색상 반전 효과까지 모든 UI/UX 디테일업이 완료되었습니다.
+2. 핵심 기능 및 UI/UX 구현 명세 (Core Features & Updates)
+① 뷰 모드 전환 (View Mode Toggle)
+* 기능 요약: 하단 좌측의 ALL LIST / VIEW GRID 버튼을 클릭해 무한 캔버스와 세로 리스트를 부드럽게 전환(Crossfade)합니다.
+* Tech 스펙:
+   * 상태값(viewMode)에 따라 렌더링을 분기하며, 리스트 뷰 진입 시 캔버스의 물리 엔진 연산을 일시 중단시켜 리소스(CPU/GPU)를 최적화했습니다.
+   * 리스트 아이템에 마우스를 올렸을 때(Hover), 레퍼런스와 동일하게 배경이 하얗게 밝아지고 내부 텍스트와 태그가 검은색으로 반전되는 가독성 강조 효과(group-hover)를 적용했습니다.
+② 드래그 방지 및 상세 정보 모달 (Bottom-up Detail Modal)
+* 기능 요약: 카드를 클릭하면 화면 하단에서 위로 부드럽게 올라오는 상세 정보창(Modal)을 구현했습니다.
+* Tech 스펙:
+   * Drag vs Click 구분 로직: 마우스 다운~업 사이의 이동 거리(dragDistance)를 누적 계산하여, 10px 이상 드래그했을 경우 클릭 이벤트가 무시되도록 처리해 오작동을 방지했습니다.
+   * 모달 애니메이션은 Tailwind의 translate-y와 transition-transform 큐빅 베지에(Cubic-bezier) 곡선을 활용해 부드럽게 제어했습니다.
+③ Y2K 메탈릭 타이포그래피 로고 (Custom Logo)
+* 기능 요약: 좌측 상단 로고를 'ビショジョ // アーカイブ' 텍스트로 변경하고, 일본 애니메이션 풍의 화려한 3D 메탈릭 스타일을 적용했습니다.
+* Tech 스펙:
+   * 텍스트에 -skew-x-[12deg]를 적용해 역동성을 주고, WebkitTextStroke를 사용해 두꺼운 외곽선 그림자 레이어와 전면 메탈릭 그라데이션 레이어를 겹쳐(Z-index Layering) 3D 효과를 구현했습니다.
+   * 브라우저 리사이징 시 레이어가 어긋나지 않도록 whitespace-nowrap과 w-fit으로 안전하게 고정했습니다. (불필요한 별모양 그래픽 제거 완료)
+④ 무한 캔버스 물리 엔진 & 밀도 최적화 (Physics Engine & Density)
+* 기능 요약: 우주 공간처럼 끝없이 이어지며 빙판 위를 미끄러지는 듯한 관성 스크롤을 제공합니다.
+* Tech 스펙:
+   * 간격(Gap) 최소화: 카드 간격을 12px로 극단적으로 좁히고 지그재그 폭을 100px로 조정하여, 화면에 빈틈없이 콘텐츠가 꽉 차 보이는 고밀도(High-density) 레이아웃을 완성했습니다.
+   * 패턴 & 색상 붕괴 방지: 홀수/짝수 열(6 Columns) 동기화로 무한 루프 시 지그재그 패턴이 끊기지 않으며, 그리드 컬러링 알고리즘을 통해 인접한 카드끼리 같은 네온 색상(10종 팔레트)이 겹치지 않도록 설계되었습니다.
+⑤ 필터 컨트롤 바 개선 (Filter Control Bar)
+* 기능 요약: 레퍼런스 UI 구조에 맞춰 토글 버튼을 캡슐 형태 밖으로 독립시키고, 내부 필터 버튼 텍스트를 'ゲーム', 'アニメ'로 변경했습니다.
+3. 전체 코드 (React 단일 파일 구성)
 import React, { useState, useRef, useEffect } from 'react';
 
 // --- [Mock Data & Constants] ---
@@ -32,8 +62,8 @@ for (let i = 0; i < COLS * ROWS; i++) {
  CARDS_DATA.push({
    id: i,
    title: ["日本昔ばなし", "雪おんな", "かぐや姫", "浦島太郎", "桃太郎", "さるかに合戦"][Math.floor(Math.random() * 6)] + ` Vol.${i + 1}`,
-   tags: ["神話", "アクション", "ファン타지", "로맨스", "코미디", "역사"].slice(0, Math.floor(Math.random() * 2) + 1),
-   author: ["スタジオジブリ風", "新海誠スタイル", "鳥山明リスペクト", "手塚治虫오마쥬"][Math.floor(Math.random() * 4)],
+   tags: ["神話", "アクション", "ファンタジー", "ロマンス", "コメディ", "歴史"].slice(0, Math.floor(Math.random() * 2) + 1),
+   author: ["スタジオジブリ風", "新海誠スタイル", "鳥山明リスペクト", "手塚治虫オマージュ"][Math.floor(Math.random() * 4)],
    imageUrl: `https://picsum.photos/seed/${i + 800}/400/600`,
    neonColor: selectedColor
  });
