@@ -1,26 +1,29 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 
-// --- [Mock Data] ----------------------------------------------------
-const CARDS_DATA = Array.from({ length: 40 }).map((_, i) => ({
-  id: i,
-  title: [
-    "日本昔ばなし", "雪おんな", "かぐや姫", "浦島太郎",
-    "桃太郎", "一寸法師", "さるかに合戦", "鶴の恩返し",
-    "おむすびころりん", "金太郎", "花咲か爺さん", "かちかち山"
-  ][i % 12] + ` Vol.${(i % 10) + 1}`,
-  tags: [
-    ["神話", "アクション"], ["ドラマ", "悲劇"], ["ファンタジー", "ロマンス"],
-    ["コメディ", "日常"], ["ホラー", "サスペンス"], ["歴史", "感動"]
-  ][i % 6],
-  author: ["スタジオジブリ風", "新海誠スタイル", "鳥山明リスペクト", "手塚治虫オマージュ"][i % 4],
-  color: `hsl(${(i * 37) % 360}, 60%, 15%)`,
-  tall: i % 3 === 0,
-  imageUrl: `https://picsum.photos/seed/${i + 100}/400/600`
-}));
+// --- [Mock Data & Constants] ---
+// 카드 넓이(260)+간격(60) * 5열 = 1600, 카드 높이(360)+간격(60) * 5행 = 2100 (빈틈없는 타일링을 위한 계산)
+const CHUNK_WIDTH = 1600;
+const CHUNK_HEIGHT = 2100;
 
-// --- [Components] ---------------------------------------------------
+const CARDS_DATA = Array.from({ length: 25 }).map((_, i) => {
+  return {
+    id: i,
+    title: ["日本昔ばなし", "雪おんな", "かぐや姫", "浦島太郎", "桃太郎", "さるかに合戦"][Math.floor(Math.random() * 6)] + ` Vol.${i + 1}`,
+    tags: ["神話", "アクション", "ファン타지", "로맨스", "코미디", "역사"].slice(0, Math.floor(Math.random() * 2) + 1),
+    author: ["スタジオジブリ風", "新海誠スタイル", "鳥山明リスペクト", "手塚治虫オ마쥬"][Math.floor(Math.random() * 4)],
+    imageUrl: `https://picsum.photos/seed/${i + 500}/400/600`
+  };
+});
 
-// 1. 개별 카드 컴포넌트 (Mouse-tracking Spotlight)
+// 청크 내부의 컬럼 배치 (5열)
+const COLUMNS = [[], [], [], [], []];
+CARDS_DATA.forEach((card, i) => {
+  COLUMNS[i % 5].push(card);
+});
+
+// --- [Components] ---
+
+// 1. 개별 카드 컴포넌트 (Neon Border & Surface Glow)
 const Card = ({ data }) => {
   const cardRef = useRef(null);
 
@@ -29,6 +32,7 @@ const Card = ({ data }) => {
     const rect = cardRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    
     cardRef.current.style.setProperty('--mouse-x', `${x}px`);
     cardRef.current.style.setProperty('--mouse-y', `${y}px`);
   };
@@ -37,138 +41,189 @@ const Card = ({ data }) => {
     <div
       ref={cardRef}
       onMouseMove={handleMouseMove}
-      className="card-wrapper"
-      style={{
-        backgroundColor: data.color,
-        height: data.tall ? '24rem' : '18rem',
-      }}
+      className={`relative p-[1px] rounded-[32px] overflow-hidden cursor-pointer group transition-transform duration-500 ease-out hover:scale-[1.03] hover:-translate-y-2 shrink-0 w-[260px] h-[360px]`}
+      style={{ boxShadow: '0 15px 35px -10px rgba(0,0,0,0.6)' }}
     >
-      {/* Background Image */}
-      <div
-        className="card-bg"
-        style={{ backgroundImage: `url(${data.imageUrl})` }}
+      {/* 1. Neon Glow Border Layer */}
+      <div 
+        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-0"
+        style={{
+          background: 'radial-gradient(400px circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.8), transparent 40%)'
+        }}
       />
-      {/* Gradient overlay */}
-      <div className="card-overlay" />
-      {/* Spotlight effect */}
-      <div className="card-spotlight" />
-      {/* Card Content */}
-      <div className="card-content">
-        <h3 className="card-title">{data.title}</h3>
-        <p className="card-author">Author: {data.author}</p>
-        <div className="card-tags">
-          {data.tags.map((tag, idx) => (
-            <span key={idx} className="card-tag">{tag}</span>
-          ))}
+
+      {/* 2. Inner Content Wrapper */}
+      <div className="relative z-10 w-full h-full bg-[#111113] rounded-[31px] overflow-hidden flex flex-col justify-end p-6">
+        <div 
+          className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110 opacity-50"
+          style={{ backgroundImage: `url(${data.imageUrl})` }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent" />
+
+        {/* 3. Surface Spotlight */}
+        <div 
+          className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"
+          style={{
+            background: 'radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.1), transparent 40%)'
+          }}
+        />
+        
+        <div className="relative z-20 text-white flex flex-col gap-2">
+          <h3 className="text-2xl font-bold leading-tight text-white/95 drop-shadow-md tracking-wide">
+            {data.title}
+          </h3>
+          <p className="text-xs text-white/50 font-medium">Author: {data.author}</p>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {data.tags.map((tag, idx) => (
+              <span key={idx} className="px-3 py-1 text-[11px] font-medium rounded-full bg-white/5 backdrop-blur-md border border-white/10 text-white/70">
+                {tag}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-// 2. 메인 애플리케이션 (Infinite Drag Canvas)
+// 무한 루프 반복 단위 블록
+const BoardChunk = ({ offsetX, offsetY }) => {
+  return (
+    <div 
+      className="absolute top-0 left-0 flex pointer-events-auto gap-[60px]"
+      style={{ 
+        width: `${CHUNK_WIDTH}px`, height: `${CHUNK_HEIGHT}px`,
+        transform: `translate(${offsetX}px, ${offsetY}px)`,
+      }}
+    >
+      {COLUMNS.map((col, colIdx) => (
+        <div 
+          key={colIdx} className="flex flex-col gap-[60px]"
+          style={{ marginTop: colIdx % 2 === 0 ? '0px' : '150px' }}
+        >
+          {col.map(card => <Card key={card.id} data={card} />)}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// 2. 메인 애플리케이션 (Physics Engine & Infinite Loop)
 export default function App() {
   const containerRef = useRef(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [position, setPosition] = useState({ x: -400, y: -200 });
+  const isDragging = useRef(false);
+  const requestRef = useRef();
+
+  const target = useRef({ x: 0, y: 0 });
+  const current = useRef({ x: 0, y: 0 });
   const dragStart = useRef({ x: 0, y: 0 });
-  const posRef = useRef({ x: -400, y: -200 });
+  const mousePos = useRef({ x: 0, y: 0 });
+  const velocity = useRef({ x: 0, y: 0 });
 
   const handleMouseDown = (e) => {
     if (e.target.closest('button') || e.target.closest('a')) return;
-    setIsDragging(true);
-    dragStart.current = {
-      x: e.clientX - posRef.current.x,
-      y: e.clientY - posRef.current.y,
-    };
+    isDragging.current = true;
+    dragStart.current = { x: e.clientX, y: e.clientY };
+    mousePos.current = { x: e.clientX, y: e.clientY };
+    velocity.current = { x: 0, y: 0 };
     document.body.style.cursor = 'grabbing';
   };
 
-  useEffect(() => {
-    const onMove = (e) => {
-      if (!isDragging) return;
-      const newX = e.clientX - dragStart.current.x;
-      const newY = e.clientY - dragStart.current.y;
-      posRef.current = { x: newX, y: newY };
-      setPosition({ x: newX, y: newY });
-    };
-    const onUp = () => {
-      setIsDragging(false);
-      document.body.style.cursor = 'default';
-    };
+  const handleMouseMove = (e) => {
+    if (!isDragging.current) return;
+    const deltaX = e.clientX - mousePos.current.x;
+    const deltaY = e.clientY - mousePos.current.y;
+    velocity.current = { x: deltaX, y: deltaY };
+    target.current.x += deltaX;
+    target.current.y += deltaY;
+    mousePos.current = { x: e.clientX, y: e.clientY };
+  };
 
-    if (isDragging) {
-      window.addEventListener('mousemove', onMove);
-      window.addEventListener('mouseup', onUp);
+  const handleMouseUp = () => {
+    isDragging.current = false;
+    document.body.style.cursor = 'default';
+  };
+
+  const updatePhysics = () => {
+    if (!isDragging.current) {
+      target.current.x += velocity.current.x;
+      target.current.y += velocity.current.y;
+      velocity.current.x *= 0.93; // Friction
+      velocity.current.y *= 0.93;
     }
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-  }, [isDragging]);
 
-  // 5개씩 컬럼 분할
-  const columns = [];
-  for (let i = 0; i < CARDS_DATA.length; i += 5) {
-    columns.push(CARDS_DATA.slice(i, i + 5));
-  }
+    current.current.x += (target.current.x - current.current.x) * 0.15; // Lerp
+    current.current.y += (target.current.y - current.current.y) * 0.15;
+
+    let wrapX = current.current.x % CHUNK_WIDTH;
+    let wrapY = current.current.y % CHUNK_HEIGHT;
+
+    if (wrapX > CHUNK_WIDTH / 2) wrapX -= CHUNK_WIDTH;
+    if (wrapX < -CHUNK_WIDTH / 2) wrapX += CHUNK_WIDTH;
+    if (wrapY > CHUNK_HEIGHT / 2) wrapY -= CHUNK_HEIGHT;
+    if (wrapY < -CHUNK_HEIGHT / 2) wrapY += CHUNK_HEIGHT;
+
+    if (current.current.x - wrapX !== 0) target.current.x -= (current.current.x - wrapX);
+    if (current.current.y - wrapY !== 0) target.current.y -= (current.current.y - wrapY);
+    
+    current.current.x = wrapX;
+    current.current.y = wrapY;
+
+    if (containerRef.current) {
+      containerRef.current.style.transform = `translate3d(${current.current.x}px, ${current.current.y}px, 0)`;
+    }
+    requestRef.current = requestAnimationFrame(updatePhysics);
+  };
+
+  useEffect(() => {
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    requestRef.current = requestAnimationFrame(updatePhysics);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      cancelAnimationFrame(requestRef.current);
+    };
+  }, []);
+
+  const offsets = [-1, 0, 1];
 
   return (
-    <div className="canvas-root" onMouseDown={handleMouseDown}>
-      {/* Background radial gradient */}
-      <div className="canvas-bg" />
+    <div className="w-screen h-screen overflow-hidden bg-black select-none relative font-sans text-zinc-100" onMouseDown={handleMouseDown}>
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-900 via-black to-black pointer-events-none z-0" />
 
-      {/* Draggable Canvas */}
-      <div
-        ref={containerRef}
-        className="canvas-inner"
-        style={{
-          transform: `translate3d(${position.x}px, ${position.y}px, 0)`,
-          willChange: 'transform',
-        }}
-      >
-        {/* Drag to Discover 안내 */}
-        <div className="discover-hint">
-          <svg className="discover-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
-              d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
-          </svg>
-          <span className="discover-text">Drag to<br />Discover</span>
+      {/* Physics Wrapper */}
+      <div ref={containerRef} className="absolute top-1/2 left-1/2 will-change-transform z-10">
+        <div className="absolute" style={{ transform: `translate(-${CHUNK_WIDTH/2}px, -${CHUNK_HEIGHT/2}px)`}}>
+          {offsets.map((y) => (
+            offsets.map((x) => (
+              <BoardChunk key={`${x}-${y}`} offsetX={x * CHUNK_WIDTH} offsetY={y * CHUNK_HEIGHT} />
+            ))
+          ))}
         </div>
-
-        {/* Staggered Grid */}
-        {columns.map((col, colIdx) => (
-          <div
-            key={colIdx}
-            className="canvas-column"
-            style={{ marginTop: colIdx % 2 === 0 ? '0px' : '100px' }}
-          >
-            {col.map(card => (
-              <Card key={card.id} data={card} />
-            ))}
-          </div>
-        ))}
       </div>
 
-      {/* Fixed UI: Top Left Logo */}
-      <div className="ui-logo">
-        <span className="ui-logo-jp">日本</span>
-        <span className="ui-logo-red">昔ばなし</span>
+      <div className="fixed top-[45%] left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0 flex flex-col items-center opacity-40">
+        <h1 className="text-7xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-600 tracking-tighter text-center leading-tight">
+          Drag to<br/>Discover
+        </h1>
       </div>
 
-      {/* Fixed UI: Top Right Nav */}
-      <nav className="ui-nav">
-        {['About', 'Company', 'News', 'Contact'].map(item => (
-          <button key={item} className="ui-nav-btn">{item}</button>
-        ))}
-      </nav>
+      <div className="fixed top-8 left-8 z-50 pointer-events-none">
+        <h1 className="text-3xl font-black tracking-tighter text-white drop-shadow-xl">
+          日本<br/><span className="text-[#e63946] font-serif">昔ばなし</span>
+        </h1>
+      </div>
 
-      {/* Fixed UI: Bottom Glassmorphism Bar */}
-      <div className="ui-bar-wrapper">
-        <div className="ui-bar">
-          <button className="ui-bar-btn-active">ALL LIST</button>
-          <button className="ui-bar-btn">作品別まとめ (By Work)</button>
-          <button className="ui-bar-btn">ジャンル (Genre)</button>
+      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50">
+        <div className="flex items-center gap-1 p-2 bg-[#1a1a1c]/80 backdrop-blur-2xl border border-white/5 rounded-full shadow-2xl">
+          <button className="px-8 py-3.5 rounded-full bg-white text-black font-black text-xs tracking-widest shadow-lg transition-transform hover:scale-105 active:scale-95">
+            ALL LIST
+          </button>
+          <button className="px-6 py-3.5 rounded-full text-white/60 hover:bg-white/10 hover:text-white font-bold text-xs tracking-widest transition-all">
+            作品別 (By Work)
+          </button>
         </div>
       </div>
     </div>

@@ -27,21 +27,21 @@ import React, { useState, useRef, useEffect } from 'react';
 const CARDS_DATA = Array.from({ length: 40 }).map((_, i) => ({
  id: i,
  title: [
-   "日本昔ばなし", "雪おんな", "かぐや姫", "浦島太郎", 
+   "日本昔ばなし", "雪おんな", "かぐ야姫", "浦島太郎", 
    "桃太郎", "一寸法師", "さるかに合戦", "鶴の恩返し",
    "おむすびころりん", "金太郎", "花咲か爺さん", "かちかち山"
  ][Math.floor(Math.random() * 12)] + ` Vol.${Math.floor(Math.random() * 10) + 1}`,
  tags: [
-   ["神話", "アクション"], ["ドラマ", "悲劇"], ["ファンタジー", "ロマンス"],
-   ["コメディ", "日常"], ["ホラー", "サスペンス"], ["歴史", "感動"]
+   ["神話", "アクション"], ["ドラマ", "悲劇"], ["팬타지", "로맨스"],
+   ["코미디", "일상"], ["호러", "서스펜스"], ["역사", "감동"]
  ][Math.floor(Math.random() * 6)],
- author: ["スタジオジブリ風", "新海誠スタイル", "鳥山明リスペクト", "手塚治虫オマージュ"][Math.floor(Math.random() * 4)],
+ author: ["スタジオジブリ風", "新海誠スタイル", "鳥山明リスペクト", "手塚治虫オ마쥬"][Math.floor(Math.random() * 4)],
  color: `hsl(${Math.random() * 360}, 60%, 20%)`,
  height: Math.random() > 0.7 ? 'h-96' : 'h-72',
  imageUrl: `https://picsum.photos/seed/${i + 100}/400/600`
 }));
 
-// --- [Components] ---------------------------------------------------
+// --- [Components] ---
 
 // 1. 개별 카드 컴포넌트 (Mouse-tracking Spotlight)
 const Card = ({ data }) => {
@@ -183,7 +183,7 @@ export default function App() {
            ALL LIST
          </button>
          <button className="px-6 py-3 rounded-full text-white/80 hover:bg-white/10 hover:text-white font-medium text-sm transition-all">
-           作品別まとめ (By Work)
+           作品별まとめ (By Work)
          </button>
        </div>
      </div>
