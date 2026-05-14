@@ -1,3 +1,33 @@
+﻿🌌 Infinite Canvas UI V8 구현 요약 문서 (최종 통합본)
+To: 안티그래비티 (Anti-Gravity)
+Subject: 무한 캔버스 UI V8 최종 업데이트 - 커스텀 커서(파티클), 뷰 전환, 상세 모달, 커스텀 로고 및 리스트 인터랙션 통합안
+1. 개요 (Overview)
+기존 무한 캔버스(Grid View) 기반의 탐색 경험과 세로형 리스트 뷰(List View) 전환 기능을 통합한 V8 최종 버전입니다.
+기존의 단순한 마우스 포인터를 숨기고(cursor-none), SVG 기반의 네온 링 화살표 커서와 HTML5 Canvas 기반의 별가루(Stardust) 잔상 파티클 엔진을 결합하여, 유저가 마우스를 움직일 때마다 환상적인 마법 가루가 흩날리는 궁극의 인터랙션 디테일을 완성했습니다.
+2. 핵심 기능 및 UI/UX 구현 명세 (Core Features)
+① 커스텀 네온 커서 & 별가루 파티클 엔진 [NEW]
+* 기능 요약: 기본 마우스 포인터를 대체하는 네온 링 커서가 부드러운 관성을 가지며 따라오고, 마우스 이동 속도에 비례해 은은한 별가루 파티클이 생성되어 흩날립니다.
+* Tech 스펙:
+   * 커서 보간 (Lerp): globalMousePos를 추적하여 커서가 목표 위치로 부드럽게 감속하며 따라붙습니다 (* 0.15 계수 사용).
+   * Canvas 파티클 엔진: SVG 렌더링에 부담을 주지 않도록 파티클 이펙트는 독립적인 <canvas> 레이어(Canvas API)에서 처리합니다.
+   * 은은한 퍼짐 효과: 중력(떨어짐) 대신 무중력 상태로 사방으로 퍼지는 속도(vx, vy)를 부여하고, 링의 중심이 아닌 바깥쪽 테두리(반지름 밖)에서 입자가 스폰되도록 삼각함수(Math.cos, Math.sin)를 사용해 계산했습니다.
+② 뷰 모드 전환 (View Mode Toggle)
+* 기능 요약: 하단의 ALL LIST / VIEW GRID 토글 버튼을 통해 고밀도 무한 캔버스와 스크롤형 리스트 뷰를 부드럽게 전환(Crossfade)합니다.
+* Tech 스펙:
+   * 리스트 뷰 진입 시 무한 캔버스의 물리 연산을 스킵하여 자원 소모를 최소화합니다.
+   * 리스트 아이템은 group-hover를 활용해 마우스 오버 시 배경이 하얗게 밝아지고 내부 텍스트가 검은색으로 반전되는 가독성 강조 효과가 적용되었습니다.
+③ 드래그 방지 및 상세 정보 모달 (Detail Modal)
+* 기능 요약: 카드를 클릭 시 화면 하단에서 위로 솟아오르는(Bottom-up) 상세 모달창을 제공합니다.
+* Tech 스펙: 마우스 이동 거리(dragDistance)를 누적 계산하여 10px 이상 드래그했을 경우 클릭 이벤트(모달 오픈)가 무시되도록 처리해 무한 캔버스 탐색 중 오작동을 방지합니다.
+④ Y2K 3D 메탈릭 로고 & 필터 바 (Custom UI)
+* 기능 요약: 좌측 상단 로고에 일본 애니메이션 풍의 3D 메탈릭 타이포그래피(ビショジョ // アーカイブ)를 적용하고, 하단 컨트롤 바의 필터를 'ゲーム', 'アニメ'로 구성했습니다.
+* Tech 스펙: WebkitTextStroke를 사용한 레이어 겹침(z-index)으로 입체적인 텍스트 그림자를 구현했습니다.
+⑤ 고밀도 무한 캔버스 물리 엔진 (Physics & Density)
+* Tech 스펙:
+   * 카드 간격을 12px로 극단적으로 좁힌 고밀도(High-density) 레이아웃 적용.
+   * 인접 색상 중복 방지 (Grid Coloring): 카드의 10종 네온 컬러(neonColor)가 상하좌우 인접한 카드와 겹치지 않도록 필터링하는 알고리즘 적용.
+3. 전체 코드 (React 단일 파일 구성)
+(아래 코드는 React App.jsx 단일 파일에서 바로 동작하도록 의존성 없이 통합된 최종 버전입니다.)
 import React, { useState, useRef, useEffect } from 'react';
 
 // --- [Mock Data & Constants] ---
@@ -31,8 +61,8 @@ for (let i = 0; i < COLS * ROWS; i++) {
  CARDS_DATA.push({
    id: i,
    title: ["日本昔ばなし", "雪おんな", "かぐや姫", "浦島太郎", "桃太郎", "さるかに合戦"][Math.floor(Math.random() * 6)] + ` Vol.${i + 1}`,
-   tags: ["神話", "アクション", "ファン타지", "로맨스", "코미디", "역사"].slice(0, Math.floor(Math.random() * 2) + 1),
-   author: ["スタジオジブリ風", "新海誠スタイル", "鳥山明リスペクト", "手塚治虫오마쥬"][Math.floor(Math.random() * 4)],
+   tags: ["神話", "アクション", "ファンタジー", "ロマンス", "コメディ", "歴史"].slice(0, Math.floor(Math.random() * 2) + 1),
+   author: ["スタジオジブリ風", "新海誠スタイル", "鳥山明リスペクト", "手塚治虫オマージュ"][Math.floor(Math.random() * 4)],
    imageUrl: `https://picsum.photos/seed/${i + 800}/400/600`,
    neonColor: selectedColor
  });
@@ -111,7 +141,7 @@ const ListView = ({ data, isVisible, onCardClick }) => {
           ))}
         </div>
         {data.map(item => (
-           <div key={item.id} onClick={() => onCardClick(item)} className="flex gap-6 p-6 bg-zinc-900/40 border border-zinc-800/50 rounded-3xl hover:bg-white transition-colors duration-300 cursor-pointer group">
+           <div key={item.id} onClick={() => onCardClick(item)} className="flex gap-6 p-6 bg-zinc-900/40 border border-zinc-800/50 rounded-3xl hover:bg-white transition-colors duration-300 group">
              <div className="w-28 h-28 rounded-full overflow-hidden shrink-0 border-[3px] shadow-[0_0_15px_rgba(0,0,0,0.5)]" style={{ borderColor: item.neonColor }}>
                <img src={item.imageUrl} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 pointer-events-none" />
              </div>
@@ -343,7 +373,7 @@ export default function App() {
      {/* ✨ 마우스 추적 커스텀 커서 (가장 상위 레이어) ✨ */}
      <div ref={cursorRef} className="fixed top-0 left-0 pointer-events-none z-[110]">
        <div className="relative origin-top-left scale-[1.05] drop-shadow-[0_8px_12px_rgba(0,0,0,0.6)]">
-         <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+         <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)">
            <defs>
              <filter id="cyanGlow" x="-50%" y="-50%" width="200%" height="200%">
                <feGaussianBlur stdDeviation="6" result="blur" />
@@ -417,7 +447,7 @@ export default function App() {
          )}
        </button>
        <div className="flex items-center gap-3 p-2 pl-8 bg-gradient-to-r from-zinc-800/90 to-[#1a1a1c]/90 backdrop-blur-2xl border border-white/20 rounded-full shadow-[0_0_30px_rgba(0,0,0,0.8)]">
-         <span className="text-white/80 font-bold text-sm tracking-widest mr-2">絞리込み</span>
+         <span className="text-white/80 font-bold text-sm tracking-widest mr-2">絞り込み</span>
          <button className="cursor-none px-6 py-2.5 rounded-full bg-white text-black font-black text-sm tracking-widest shadow-lg transition-transform hover:scale-105 active:scale-95">ゲーム</button>
          <button className="cursor-none px-6 py-2.5 rounded-full bg-white text-black font-black text-sm tracking-widest shadow-lg transition-transform hover:scale-105 active:scale-95">アニメ</button>
        </div>
