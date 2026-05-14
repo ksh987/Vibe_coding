@@ -1,3 +1,26 @@
+﻿🌌 Infinite Canvas UI 최종 구현 전달 문서
+To: 안티그래비티 (Anti-Gravity) 프론트엔드 팀
+Subject: 무한 캔버스 UI 최종 업데이트 - 인트로 시퀀스, 커스텀 커서, 뷰 전환 및 상세 모달 통합안
+1. 개요 (Overview)
+이 문서는 웹사이트 진입 시의 인트로(오디오/스플래시) 시퀀스, 커스텀 마우스 커서(별가루 파티클), 무한 캔버스 ↔ 리스트 뷰 전환, 그리고 상세 정보 모달까지 모든 UI/UX 인터랙션이 단일 컴포넌트로 통합된 최종 버전을 담고 있습니다.
+2. ⚠️ 에셋(Asset) 연동 가이드 (프론트엔드 팀 필독)
+전달된 코드 내에 포함된 오디오 및 이미지 파일의 경로를 실제 프로젝트의 정적 파일(static/public) 경로에 맞게 수정하여 사용해 주시기 바랍니다.
+1. 배경음악 파일 (Slow_Coffee_Mornings.mp3)
+   * 코드 내 <audio ref={audioRef} src="/assets/Slow_Coffee_Mornings.mp3" loop /> 부분의 경로를 실제 프로젝트 환경에 맞게 매핑해 주세요.
+2. 크리스마스 스플래시 이미지 (photo_2026-05-14_12-43-07.jpg)
+   * 코드 내 <img src="/assets/photo_2026-05-14_12-43-07.jpg" ... /> 부분의 경로를 매핑해 주세요. (기존 테스트용 임시 fallback 코드는 제거되었습니다.)
+3. 핵심 인터랙션 명세 (Core Features)
+* Step-by-Step 인트로 시퀀스 (introStep State 관리)
+   * Step 0: 화면 진입 시 오디오 재생 여부를 묻는 프롬프트 팝업.
+   * Step 1: 선택 완료 후, 크리스마스 일러스트 이미지가 3초간 펄스(Pulse) 애니메이션과 함께 노출되는 스플래시 화면.
+   * Step 2: 메인 무한 캔버스 화면으로 부드럽게 페이드인 진입 (이후부터 드래그 및 마우스 커서 이펙트 활성화).
+* 마우스 추적 네온 커서 & 별가루(Stardust) 파티클
+   * 기본 커서를 숨기고(cursor-none), SVG 기반의 네온 링 화살표가 Lerp 물리 연산으로 부드럽게 따라옵니다.
+   * 이동 속도에 비례해 독립된 <canvas> 레이어에서 은은한 별가루 파티클이 흩날립니다.
+* 뷰 모드 전환 (Grid ↔ List)
+   * 무한 관성 스크롤(Grid) 모드와 세로형 스크롤(List) 모드를 하단 토글 버튼으로 전환합니다.
+   * 리스트 뷰 모드에서는 자원 절약을 위해 캔버스의 이동 연산을 일시 중단합니다.
+4. 전체 통합 코드 (App.jsx)
 import React, { useState, useRef, useEffect } from 'react';
 
 // --- [Mock Data & Constants] ---
@@ -29,8 +52,8 @@ for (let i = 0; i < COLS * ROWS; i++) {
  CARDS_DATA.push({
    id: i,
    title: ["日本昔ばなし", "雪おんな", "かぐや姫", "浦島太郎", "桃太郎", "さるかに合戦"][Math.floor(Math.random() * 6)] + ` Vol.${i + 1}`,
-   tags: ["神話", "アクション", "ファン타지", "로맨스", "코미디", "역사"].slice(0, Math.floor(Math.random() * 2) + 1),
-   author: ["スタジオジブリ風", "新海誠スタイル", "鳥山明リスペクト", "手塚治虫오마쥬"][Math.floor(Math.random() * 4)],
+   tags: ["神話", "アクション", "ファンタジー", "ロマンス", "コメディ", "歴史"].slice(0, Math.floor(Math.random() * 2) + 1),
+   author: ["スタジオジブリ風", "新海誠スタイル", "鳥山明リスペクト", "手塚治虫オマージュ"][Math.floor(Math.random() * 4)],
    imageUrl: `https://picsum.photos/seed/${i + 800}/400/600`,
    neonColor: selectedColor
  });
@@ -361,7 +384,7 @@ export default function App() {
 
      <div ref={cursorRef} className={`fixed top-0 left-0 pointer-events-none z-[110] transition-opacity duration-1000 ${introStep === 2 && viewMode === 'grid' ? 'opacity-100' : 'opacity-0'}`}>
        <div className="relative origin-top-left scale-[1.05] drop-shadow-[0_8px_12px_rgba(0,0,0,0.6)]">
-         <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+         <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)">
            <defs>
              <filter id="cyanGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6" result="blur" /><feComposite in="SourceGraphic" in2="blur" operator="over" /></filter>
              <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#ffffff" /><stop offset="50%" stopColor="#22d3ee" /><stop offset="100%" stopColor="#0891b2" /></linearGradient>
