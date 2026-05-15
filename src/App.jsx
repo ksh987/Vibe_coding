@@ -1,5 +1,31 @@
 import React, { useState, useRef, useEffect } from 'react';
 
+// --- [Web Audio API: 맑고 투명한 호버 사운드 생성기] ---
+let audioCtx = null;
+
+const playHoverSound = () => {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+
+  const osc = audioCtx.createOscillator();
+  const gainNode = audioCtx.createGain();
+
+  osc.type = 'sine'; 
+  osc.frequency.setValueAtTime(1200 + Math.random() * 600, audioCtx.currentTime);
+
+  gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+  gainNode.gain.linearRampToValueAtTime(0.02, audioCtx.currentTime + 0.08); 
+  gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.8);
+
+  osc.connect(gainNode);
+  gainNode.connect(audioCtx.destination);
+
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.8);
+};
+
 // --- [Mock Data & Constants] ---
 const CARD_W = 260;
 const CARD_H = 360;
@@ -49,7 +75,10 @@ const Card = ({ data, onClick }) => {
 
  return (
    <div
-     ref={cardRef} onMouseMove={handleMouseMove} onClick={() => onClick(data)}
+     ref={cardRef} 
+     onMouseMove={handleMouseMove} 
+     onMouseEnter={playHoverSound}
+     onClick={() => onClick(data)}
      className={`relative rounded-[32px] overflow-hidden group transition-transform duration-500 ease-out hover:scale-[1.04] hover:-translate-y-2 shrink-0`}
      style={{ width: `${CARD_W}px`, height: `${CARD_H}px`, boxShadow: `0 0 40px -5px ${data.neonColor}50, 0 15px 35px -10px rgba(0,0,0,0.8)` }}
    >
@@ -102,7 +131,7 @@ const ListView = ({ data, isVisible, onCardClick }) => {
           ))}
         </div>
         {data.map(item => (
-           <div key={item.id} onClick={() => onCardClick(item)} className="flex gap-6 p-6 bg-zinc-900/40 border border-zinc-800/50 rounded-3xl hover:bg-white transition-colors duration-300 group cursor-pointer">
+           <div key={item.id} onMouseEnter={playHoverSound} onClick={() => onCardClick(item)} className="flex gap-6 p-6 bg-zinc-900/40 border border-zinc-800/50 rounded-3xl hover:bg-white transition-colors duration-300 group cursor-pointer">
              <div className="w-28 h-28 rounded-full overflow-hidden shrink-0 border-[3px] shadow-[0_0_15px_rgba(0,0,0,0.5)]" style={{ borderColor: item.neonColor }}>
                <img src={item.imageUrl} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 pointer-events-none" />
              </div>
@@ -166,6 +195,12 @@ export default function App() {
  useEffect(() => { viewModeRef.current = viewMode; }, [viewMode]);
 
  const handleIntroSelection = (playAudio) => {
+   // 오디오 컨텍스트 초기화 및 재개
+   if (!audioCtx) {
+     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+   }
+   if (audioCtx.state === 'suspended') audioCtx.resume();
+
    if (playAudio && audioRef.current) {
      audioRef.current.play().catch(err => console.log("Audio playback failed:", err));
    }
@@ -227,8 +262,8 @@ export default function App() {
    const prevX = cursorCurrent.current.x;
    const prevY = cursorCurrent.current.y;
 
-   cursorCurrent.current.x += (globalMousePos.current.x - cursorCurrent.current.x) * 0.15;
-   cursorCurrent.current.y += (globalMousePos.current.y - cursorCurrent.current.y) * 0.15;
+   cursorCurrent.current.x = globalMousePos.current.x;
+   cursorCurrent.current.y = globalMousePos.current.y;
    
    if (cursorRef.current) {
      cursorRef.current.style.transform = `translate3d(${cursorCurrent.current.x}px, ${cursorCurrent.current.y}px, 0)`;
@@ -443,13 +478,13 @@ export default function App() {
 
        {/* Nav */}
        <div className="fixed top-8 right-8 z-[70] flex gap-6 text-[13px] font-bold tracking-widest text-white/60">
-         <button className="hover:text-white transition-colors uppercase cursor-none">About</button>
-         <button className="hover:text-white transition-colors uppercase cursor-none">Company</button>
+         <button onMouseEnter={playHoverSound} className="hover:text-white transition-colors uppercase cursor-none">About</button>
+         <button onMouseEnter={playHoverSound} className="hover:text-white transition-colors uppercase cursor-none">Company</button>
        </div>
 
        {/* Control Bar */}
        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[70] flex items-center gap-8">
-         <button onClick={() => setViewMode(prev => prev === 'grid' ? 'list' : 'grid')} className="cursor-none flex items-center justify-center text-white font-black text-sm tracking-widest transition-transform hover:scale-105 active:scale-95 drop-shadow-md">
+         <button onMouseEnter={playHoverSound} onClick={() => setViewMode(prev => prev === 'grid' ? 'list' : 'grid')} className="cursor-none flex items-center justify-center text-white font-black text-sm tracking-widest transition-transform hover:scale-105 active:scale-95 drop-shadow-md">
            {viewMode === 'grid' ? (
              <><svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" /></svg>ALL LIST</>
            ) : (
@@ -458,8 +493,8 @@ export default function App() {
          </button>
          <div className="flex items-center gap-3 p-2 pl-8 bg-gradient-to-r from-zinc-800/90 to-[#1a1a1c]/90 backdrop-blur-2xl border border-white/20 rounded-full shadow-[0_0_30px_rgba(0,0,0,0.8)]">
            <span className="text-white/80 font-bold text-sm tracking-widest mr-2">絞り込み</span>
-           <button className="cursor-none px-6 py-2.5 rounded-full bg-white text-black font-black text-sm tracking-widest shadow-lg transition-transform hover:scale-105 active:scale-95">ゲーム</button>
-           <button className="cursor-none px-6 py-2.5 rounded-full bg-white text-black font-black text-sm tracking-widest shadow-lg transition-transform hover:scale-105 active:scale-95">アニメ</button>
+           <button onMouseEnter={playHoverSound} className="cursor-none px-6 py-2.5 rounded-full bg-white text-black font-black text-sm tracking-widest shadow-lg transition-transform hover:scale-105 active:scale-95">ゲーム</button>
+           <button onMouseEnter={playHoverSound} className="cursor-none px-6 py-2.5 rounded-full bg-white text-black font-black text-sm tracking-widest shadow-lg transition-transform hover:scale-105 active:scale-95">アニメ</button>
          </div>
        </div>
      </div>
