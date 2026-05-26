@@ -171,9 +171,7 @@ const ListView = ({ data, isVisible, onCardClick }) => {
 
 export default function App() {
   const [introStep, setIntroStep] = useState(0);
-  const [splashClosing, setSplashClosing] = useState(false); 
   const audioRef = useRef(null);
-
   // --- [Firebase States] ---
   const [user, setUser] = useState(null);
   const [firestoreCards, setFirestoreCards] = useState([]);
@@ -214,7 +212,6 @@ export default function App() {
   const cards = firestoreCards.length > 0
     ? [...firestoreCards, ...CARDS_DATA.slice(0, Math.max(0, INITIAL_COLS * INITIAL_ROWS - firestoreCards.length))]
     : CARDS_DATA;
-
   // Infinite grid layouts calculation based on reactive cards count
   const dynamicCols = 6;
   const dynamicRows = Math.ceil(cards.length / dynamicCols) || 1;
@@ -242,6 +239,21 @@ export default function App() {
     x: typeof window !== 'undefined' ? window.innerWidth / 2 : 0, 
     y: typeof window !== 'undefined' ? window.innerHeight / 2 : 0 
   });
+
+  const handleIntroSelection = (playAudio) => {
+    // 오디오 컨텍스트 초기화 및 재개
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    if (playAudio && audioRef.current) {
+      audioRef.current.play().catch(err => console.log("Audio playback failed:", err));
+    }
+    
+    // 크리스마스 스플래시 이미지 단계(Step 1)를 건너뛰고 메인 화면(Step 2)으로 바로 진입
+    setIntroStep(2);
+  };
 
   const chunkWidthRef = useRef(dynamicChunkWidth);
   const chunkHeightRef = useRef(dynamicChunkHeight);
@@ -278,27 +290,6 @@ export default function App() {
   }, [dynamicChunkWidth, dynamicChunkHeight]);
 
   useEffect(() => { viewModeRef.current = viewMode; }, [viewMode]);
-
-  const handleIntroSelection = (playAudio) => {
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-
-    if (playAudio && audioRef.current) {
-      audioRef.current.play().catch(err => console.log("Audio playback failed:", err));
-    }
-    
-    setIntroStep(1); 
-    
-    setTimeout(() => {
-      setSplashClosing(true);
-    }, 10);
-
-    setTimeout(() => {
-      setIntroStep(2);
-    }, 5500);
-  };
 
   const openModal = (card) => {
     setActiveCard(card);
@@ -676,23 +667,6 @@ export default function App() {
               </button>
             </div>
           </div>
-        </div>
-
-        {/* Step 1: Splash Image & Cinematic Blackout */}
-        <div className={`absolute inset-0 flex items-center justify-center bg-[#0a0a0a] transition-opacity duration-300 ${introStep === 1 ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-          <img src="/assets/photo_2026-05-14_12-43-07.jpg" alt="Intro Splash" className="w-full h-full object-cover" />
-          
-          <div 
-            className="absolute inset-0 pointer-events-none z-10"
-            style={{
-              transitionProperty: 'box-shadow',
-              transitionDuration: '12000ms', 
-              transitionTimingFunction: 'ease-in-out',
-              boxShadow: splashClosing 
-                ? 'inset 0 0 3000px 3000px rgba(0,0,0,1)' 
-                : 'inset 0 0 150px 40px rgba(0,0,0,0.8), inset 0 0 40px 10px rgba(0,0,0,1)' 
-            }}
-          />
         </div>
       </div>
 
