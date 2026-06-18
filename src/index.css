@@ -290,3 +290,9 @@ body {
   background: rgba(255,255,255,0.1);
   color: #fff;
 }
+
+/* ===== Hide Native Cursor ===== */
+.hide-native-cursor,
+.hide-native-cursor * {
+  cursor: none !important;
+}

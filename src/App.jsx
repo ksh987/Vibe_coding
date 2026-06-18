@@ -348,9 +348,9 @@ export default function App() {
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      const ringCenterX = cursorCurrent.current.x + 40 * 1.05;
-      const ringCenterY = cursorCurrent.current.y + 12 * 1.05;
-      const ringRadius = 10 * 1.05; 
+      const ringCenterX = cursorCurrent.current.x;
+      const ringCenterY = cursorCurrent.current.y;
+      const ringRadius = 2; 
 
       if (speed > 0.5) {
         const particleCount = Math.min(Math.floor(speed / 4) + 1, 3);
@@ -634,7 +634,7 @@ export default function App() {
   const offsets = [-1, 0, 1];
 
   return (
-    <div className={`w-screen h-screen overflow-hidden bg-[#0a0a0a] select-none relative font-sans text-zinc-100 ${introStep === 2 && !isCreateModalOpen && !isModalOpen && !isAuthModalOpen ? 'cursor-none' : 'cursor-auto'}`} onMouseDown={handleMouseDown}>
+    <div className={`w-screen h-screen overflow-hidden bg-[#0a0a0a] select-none relative font-sans text-zinc-100 ${introStep === 2 ? 'hide-native-cursor' : ''}`} onMouseDown={handleMouseDown}>
       
       {/* ⚠️ 에셋 매핑 위치 (오디오) */}
       <audio ref={audioRef} src="/assets/Slow_Coffee_Mornings.mp3" loop />
@@ -674,21 +674,9 @@ export default function App() {
       <canvas ref={canvasRef} className={`fixed top-0 left-0 w-full h-full pointer-events-none z-[105] transition-opacity duration-1000 ${introStep === 2 ? 'opacity-100' : 'opacity-0'}`} />
 
       {/* ✨ 마우스 추적 커스텀 커서 ✨ */}
-      <div ref={cursorRef} className={`fixed top-0 left-0 pointer-events-none z-[110] transition-opacity duration-1000 ${introStep === 2 && viewMode === 'grid' && !isCreateModalOpen && !isModalOpen && !isAuthModalOpen ? 'opacity-100' : 'opacity-0'}`}>
-        <div className="relative origin-top-left scale-[1.05] drop-shadow-[0_8px_12px_rgba(0,0,0,0.6)]">
-          <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <filter id="cyanGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6" result="blur" /><feComposite in="SourceGraphic" in2="blur" operator="over" /></filter>
-              <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#ffffff" /><stop offset="50%" stopColor="#22d3ee" /><stop offset="100%" stopColor="#0891b2" /></linearGradient>
-              <linearGradient id="pointerGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#ffffff" /><stop offset="100%" stopColor="#e2e8f0" /></linearGradient>
-            </defs>
-            <g className="animate-spin" style={{ transformOrigin: '40px 12px', animationDuration: '3s' }}>
-              <circle cx="40" cy="12" r="10" fill="none" stroke="url(#ringGrad)" strokeWidth="4" filter="url(#cyanGlow)" />
-              <circle cx="40" cy="12" r="10" fill="none" stroke="#cffafe" strokeWidth="1" strokeDasharray="3 3" />
-            </g>
-            <path d="M0 0 L0 25.5 L6 19.5 L12 33 L16.5 31.5 L10.5 18 L18 18 Z" fill="white" stroke="#111" strokeWidth="1.5" strokeLinejoin="round" />
-            <path d="M2 3.5 L2 21.5 L6.5 17 L12.5 29.5 L14 29 L8 16.5 L14.5 16.5 Z" fill="url(#pointerGrad)" />
-          </svg>
+      <div ref={cursorRef} className={`fixed top-0 left-0 pointer-events-none z-[210] transition-opacity duration-300 ${introStep === 2 ? 'opacity-100' : 'opacity-0'}`}>
+        <div className="relative origin-top-left scale-[1.05] drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)]">
+          <img src="/cursor.png" alt="custom cursor" style={{ width: '76px', height: '76px', objectFit: 'contain' }} />
         </div>
       </div>
 
