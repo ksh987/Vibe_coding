@@ -6,7 +6,9 @@ import {
   logOut, 
   addCardToFirestore,
   signUpWithEmail,
-  signInWithEmail
+  signInWithEmail,
+  updateCardInFirestore,
+  deleteCardFromFirestore
 } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
@@ -73,41 +75,99 @@ for (let i = 0; i < INITIAL_COLS * INITIAL_ROWS; i++) {
 
 // --- [Components] ---
 
-const Card = ({ data, onClick }) => {
- const cardRef = useRef(null);
- const handleMouseMove = (e) => {
-   if (!cardRef.current) return;
-   const rect = cardRef.current.getBoundingClientRect();
-   cardRef.current.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
-   cardRef.current.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
- };
+const Card = ({ data, onClick, onImageAdjust }) => {
+  const cardRef = useRef(null);
+  const isDraggingImage = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const startPos = useRef({ x: 50, y: 50 });
 
- return (
-   <div
-     ref={cardRef} 
-     onMouseMove={handleMouseMove} 
-     onMouseEnter={playHoverSound}
-     onClick={() => onClick(data)}
-     className={`relative rounded-[32px] overflow-hidden group transition-transform duration-500 ease-out hover:scale-[1.04] hover:-translate-y-2 shrink-0`}
-     style={{ width: `${CARD_W}px`, height: `${CARD_H}px`, boxShadow: `0 0 40px -5px ${data.neonColor}50, 0 15px 35px -10px rgba(0,0,0,0.8)` }}
-   >
-     <div className="relative z-10 w-full h-full bg-[#111113] overflow-hidden flex flex-col justify-end p-6">
-       <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110 opacity-60" style={{ backgroundImage: `url(${data.imageUrl})` }} />
-       <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
-       <div className="absolute inset-0 pointer-events-none rounded-[32px] z-10 mix-blend-screen" style={{ border: `2px solid ${data.neonColor}60`, boxShadow: `inset 0 0 80px 5px ${data.neonColor}70, inset 0 0 20px 2px ${data.neonColor}90` }} />
-       <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 mix-blend-overlay" style={{ background: 'radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.3), transparent 40%)' }} />
-       <div className="relative z-20 text-white flex flex-col gap-2 drop-shadow-lg pointer-events-none">
-         <h3 className="text-2xl font-bold leading-tight text-white/95 tracking-wide">{data.title}</h3>
-         <p className="text-xs text-white/60 font-medium">Author: {data.author}</p>
-         <div className="flex flex-wrap gap-2 mt-2">
-           {data.tags.map((tag, idx) => (
-             <span key={idx} className="px-3 py-1 text-[11px] font-medium rounded-full bg-black/40 backdrop-blur-md border border-white/20 text-white/80">{tag}</span>
-           ))}
-         </div>
-       </div>
-     </div>
-   </div>
- );
+  const handleMouseMove = (e) => {
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    cardRef.current.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
+    cardRef.current.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
+
+    if (onImageAdjust && isDraggingImage.current) {
+      e.preventDefault();
+      const deltaX = e.clientX - dragStart.current.x;
+      const deltaY = e.clientY - dragStart.current.y;
+      
+      const scale = data.imageScale ?? 1.0;
+      const factor = 100 / scale;
+      const newX = Math.max(0, Math.min(100, startPos.current.x - (deltaX / rect.width) * factor));
+      const newY = Math.max(0, Math.min(100, startPos.current.y - (deltaY / rect.height) * factor));
+
+      onImageAdjust(newX, newY);
+    }
+  };
+
+  const handleMouseDown = (e) => {
+    if (onImageAdjust) {
+      e.stopPropagation();
+      isDraggingImage.current = true;
+      dragStart.current = { x: e.clientX, y: e.clientY };
+      startPos.current = { 
+        x: data.imagePositionX ?? 50, 
+        y: data.imagePositionY ?? 50 
+      };
+    }
+  };
+
+  const handleMouseUpOrLeave = () => {
+    isDraggingImage.current = false;
+  };
+
+  return (
+    <div
+      ref={cardRef} 
+      onMouseMove={handleMouseMove} 
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUpOrLeave}
+      onMouseLeave={handleMouseUpOrLeave}
+      onMouseEnter={playHoverSound}
+      onClick={(e) => {
+        if (!isDraggingImage.current) {
+          onClick(data);
+        }
+      }}
+      className={`relative rounded-[32px] overflow-hidden group transition-transform duration-500 ease-out hover:scale-[1.04] hover:-translate-y-2 shrink-0`}
+      style={{ 
+        width: `${CARD_W}px`, 
+        height: `${CARD_H}px`, 
+        boxShadow: `0 0 40px -5px ${data.neonColor}50, 0 15px 35px -10px rgba(0,0,0,0.8)`,
+        cursor: onImageAdjust ? 'move' : 'pointer'
+      }}
+    >
+      <div className="relative z-10 w-full h-full bg-[#111113] overflow-hidden flex flex-col justify-end p-6">
+        <div 
+          className="absolute inset-0 transition-transform duration-700 group-hover:scale-110 opacity-60"
+          style={{ overflow: 'hidden' }}
+        >
+          <div 
+            className="w-full h-full bg-cover"
+            style={{ 
+              backgroundImage: `url(${data.imageUrl})`,
+              backgroundPosition: `${data.imagePositionX ?? 50}% ${data.imagePositionY ?? 50}%`,
+              transform: `scale(${data.imageScale ?? 1.0})`,
+              transformOrigin: 'center center'
+            }}
+          />
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
+        <div className="absolute inset-0 pointer-events-none rounded-[32px] z-10 mix-blend-screen" style={{ border: `2px solid ${data.neonColor}60`, boxShadow: `inset 0 0 80px 5px ${data.neonColor}70, inset 0 0 20px 2px ${data.neonColor}90` }} />
+        <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 mix-blend-overlay" style={{ background: 'radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.3), transparent 40%)' }} />
+        <div className="relative z-20 text-white flex flex-col gap-2 drop-shadow-lg pointer-events-none">
+          <h3 className="text-2xl font-bold leading-tight text-white/95 tracking-wide">{data.title}</h3>
+          <p className="text-xs text-white/60 font-medium">{data.author}</p>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {data.tags.map((tag, idx) => (
+              <span key={idx} className="px-3 py-1 text-[11px] font-medium rounded-full bg-black/40 backdrop-blur-md border border-white/20 text-white/80">{tag}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const BoardChunk = ({ cards, cols, chunkWidth, chunkHeight, offsetX, offsetY, onCardClick }) => {
@@ -150,7 +210,7 @@ const ListView = ({ data, isVisible, onCardClick }) => {
                  {item.tags.map((tag, idx) => (
                    <span key={idx} className="px-2.5 py-1 text-[10px] font-bold bg-zinc-800 rounded-md text-zinc-400 border border-zinc-700 group-hover:bg-white group-hover:text-black group-hover:border-zinc-500 transition-colors duration-300">{tag}</span>
                  ))}
-                 <span className="px-2.5 py-1 text-[10px] font-bold bg-zinc-800 rounded-md text-zinc-400 border border-zinc-700 group-hover:bg-white group-hover:text-black group-hover:border-zinc-500 transition-colors duration-300">Author: {item.author}</span>
+                 <span className="px-2.5 py-1 text-[10px] font-bold bg-zinc-800 rounded-md text-zinc-400 border border-zinc-700 group-hover:bg-white group-hover:text-black group-hover:border-zinc-500 transition-colors duration-300">{item.author}</span>
                </div>
                <p className="text-zinc-500 text-sm line-clamp-2 pr-10 font-medium group-hover:text-zinc-800 transition-colors duration-300">
                  {item.description || `${item.title}를 중심으로 펼쳐지는 환상적인 이야기. 예로부터 전해져 내려오는 민담을 현대적인 감각으로 재해석하여, 남녀노소 누구나 즐길 수 있는 감동적인 서사를 담아냈습니다.`}
@@ -175,6 +235,14 @@ export default function App() {
   // --- [Firebase States] ---
   const [user, setUser] = useState(null);
   const [firestoreCards, setFirestoreCards] = useState([]);
+  const [localCards, setLocalCards] = useState(() => {
+    try {
+      const saved = localStorage.getItem('vibe_cards');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
 
   const [viewMode, setViewMode] = useState('grid');
   const viewModeRef = useRef(viewMode);
@@ -206,11 +274,30 @@ export default function App() {
   const [newDescription, setNewDescription] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
   const [isSaveSuccess, setIsSaveSuccess] = useState(false);
+  
+  // Image position and scale states
+  const [newImageScale, setNewImageScale] = useState(1.0);
+  const [newImagePositionX, setNewImagePositionX] = useState(50);
+  const [newImagePositionY, setNewImagePositionY] = useState(50);
+  const [editingCardId, setEditingCardId] = useState(null);
 
   // --- [Reactive Hybrid Cards System] ---
-  // Firestore 실제 등록 카드 + 자리가 남을 시 기본 mock 카드를 병합하여 화면 풍성도 유지
-  const cards = firestoreCards.length > 0
-    ? [...firestoreCards, ...CARDS_DATA.slice(0, Math.max(0, INITIAL_COLS * INITIAL_ROWS - firestoreCards.length))]
+  // Firestore 실제 등록 카드 + 로컬 카드 병합 (id 기준 중복 제거)
+  const combinedCardsList = (() => {
+    const cardMap = new Map();
+    localCards.forEach(c => cardMap.set(c.id, c));
+    firestoreCards.forEach(c => cardMap.set(c.id, c));
+    const list = Array.from(cardMap.values());
+    list.sort((a, b) => {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bTime - aTime;
+    });
+    return list;
+  })();
+
+  const cards = combinedCardsList.length > 0
+    ? [...combinedCardsList, ...CARDS_DATA.slice(0, Math.max(0, INITIAL_COLS * INITIAL_ROWS - combinedCardsList.length))]
     : CARDS_DATA;
   // Infinite grid layouts calculation based on reactive cards count
   const dynamicCols = 6;
@@ -298,6 +385,59 @@ export default function App() {
   const closeModal = () => {
     setIsModalOpen(false);
     setTimeout(() => setActiveCard(null), 700);
+  };
+
+  const handleEditCardClick = (card) => {
+    setEditingCardId(card.id);
+    setNewTitle(card.title || '');
+    setNewAuthor(card.author || '');
+    setNewTags(card.tags ? card.tags.join(' ') : '');
+    setNewColor(card.neonColor || NEON_COLORS[0]);
+    setNewDescription(card.description || '');
+    setNewImageScale(card.imageScale ?? 1.0);
+    setNewImagePositionX(card.imagePositionX ?? 50);
+    setNewImagePositionY(card.imagePositionY ?? 50);
+
+    if (card.imageUrl && card.imageUrl.startsWith('https://picsum.photos/seed/')) {
+      const parts = card.imageUrl.split('/');
+      const seed = parts[4] || 'custom-seed';
+      setNewImageType('seed');
+      setNewImageSeed(seed);
+      setNewImageUrl('');
+    } else {
+      setNewImageType('url');
+      setNewImageUrl(card.imageUrl || '');
+      setNewImageSeed('custom-seed');
+    }
+
+    setIsModalOpen(false);
+    setIsCreateModalOpen(true);
+    playHoverSound();
+  };
+
+  const handleDeleteCardClick = async (cardId) => {
+    const confirmDelete = window.confirm("정말로 이 아카이브 카드를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.");
+    if (!confirmDelete) return;
+
+    try {
+      // 낙관적 삭제 수행
+      const nextLocalCards = localCards.filter(c => c.id !== cardId);
+      setLocalCards(nextLocalCards);
+      localStorage.setItem('vibe_cards', JSON.stringify(nextLocalCards));
+      
+      closeModal();
+      playHoverSound();
+
+      // 파이어베이스 비동기 삭제 시도
+      try {
+        await deleteCardFromFirestore(cardId);
+      } catch (firestoreError) {
+        console.warn("Firestore delete failed, removed locally:", firestoreError);
+      }
+    } catch (error) {
+      console.error("Delete Error:", error);
+      alert("카드 삭제에 실패했습니다: " + error.message);
+    }
   };
 
   const handleCardClick = (card) => {
@@ -561,18 +701,21 @@ export default function App() {
 
 
   const handleCloseAndApply = () => {
-    if (isSaveSuccess) {
-      // Reset Form (Only on success!)
-      setNewTitle('');
-      setNewAuthor('');
-      setNewTags('');
-      setNewColor(NEON_COLORS[0]);
-      setNewImageType('seed');
-      setNewImageSeed(Math.random().toString(36).substring(7));
-      setNewImageUrl('');
-      setNewDescription('');
-      setIsSaveSuccess(false);
-    }
+    // Reset Form completely to ensure fresh state
+    setNewTitle('');
+    setNewAuthor('');
+    setNewTags('');
+    setNewColor(NEON_COLORS[0]);
+    setNewImageType('seed');
+    setNewImageSeed(Math.random().toString(36).substring(7));
+    setNewImageUrl('');
+    setNewDescription('');
+    setNewImageScale(1.0);
+    setNewImagePositionX(50);
+    setNewImagePositionY(50);
+    setEditingCardId(null);
+    setIsSaveSuccess(false);
+
     // Close Modal and play success sound
     setIsCreateModalOpen(false);
     playHoverSound();
@@ -590,30 +733,99 @@ export default function App() {
       return;
     }
 
-    const newCardObj = {
+    const cardObj = {
       title: newTitle,
       author: newAuthor || '작가 미상',
       tags: newTags ? newTags.split(/[\s,]+/).filter(Boolean) : ['기타'],
       imageUrl: newImageType === 'seed' 
-        ? `https://picsum.photos/seed/${newImageSeed || Date.now()}/400/600` 
+        ? `https://picsum.photos/seed/${newImageSeed}/400/600` 
         : (newImageUrl || `https://picsum.photos/seed/${Date.now()}/400/600`),
       neonColor: newColor,
-      height: Math.random() > 0.7 ? 'h-96' : 'h-72',
       description: newDescription,
-      creatorUid: user ? user.uid : 'anonymous',
-      creatorName: user ? user.displayName : '익명'
+      imageScale: newImageScale,
+      imagePositionX: newImagePositionX,
+      imagePositionY: newImagePositionY
     };
 
     try {
       setIsRegistering(true);
       setIsSaveSuccess(false);
-      // 파이어베이스 Firestore DB에 즉시 영구 저장!
-      await addCardToFirestore(newCardObj);
+
+      let tempId = editingCardId;
+
+      // 낙관적 업데이트 수행 (즉각 화면 반영)
+      if (editingCardId) {
+        const existingCard = cards.find(c => c.id === editingCardId);
+        const updatedCard = {
+          ...existingCard,
+          ...cardObj,
+          id: editingCardId,
+          createdAt: existingCard?.createdAt || new Date().toISOString()
+        };
+        const nextLocalCards = localCards.map(c => c.id === editingCardId ? updatedCard : c);
+        if (!nextLocalCards.some(c => c.id === editingCardId)) {
+          nextLocalCards.push(updatedCard);
+        }
+        setLocalCards(nextLocalCards);
+        localStorage.setItem('vibe_cards', JSON.stringify(nextLocalCards));
+      } else {
+        const localId = `local-${Date.now()}`;
+        tempId = localId;
+        const newCardObj = {
+          ...cardObj,
+          id: localId,
+          createdAt: new Date().toISOString(),
+          height: Math.random() > 0.7 ? 'h-96' : 'h-72',
+          creatorUid: user ? user.uid : 'anonymous',
+          creatorName: user ? user.displayName : '익명'
+        };
+        const nextLocalCards = [newCardObj, ...localCards];
+        setLocalCards(nextLocalCards);
+        localStorage.setItem('vibe_cards', JSON.stringify(nextLocalCards));
+      }
+
       setIsSaveSuccess(true);
       playHoverSound();
+
+      // 파이어베이스 비동기 연동 시도
+      try {
+        if (editingCardId) {
+          // 수정 시도 → 파이어스토어에 문서가 없으면 신규 생성으로 전환
+          try {
+            await updateCardInFirestore(editingCardId, cardObj);
+          } catch (updateError) {
+            console.warn("Update failed, creating new document instead:", updateError);
+            const firestoreId = await addCardToFirestore({
+              ...cardObj,
+              height: 'h-96',
+              creatorUid: user ? user.uid : 'anonymous',
+              creatorName: user ? user.displayName : '익명'
+            });
+            // 로컬 카드의 기존 ID를 파이어베이스 실제 ID로 교체
+            const savedLocalCards = JSON.parse(localStorage.getItem('vibe_cards') || '[]');
+            const updatedLocalCards = savedLocalCards.map(c => c.id === editingCardId ? { ...c, id: firestoreId } : c);
+            setLocalCards(updatedLocalCards);
+            localStorage.setItem('vibe_cards', JSON.stringify(updatedLocalCards));
+          }
+        } else {
+          const firestoreId = await addCardToFirestore({
+            ...cardObj,
+            height: Math.random() > 0.7 ? 'h-96' : 'h-72',
+            creatorUid: user ? user.uid : 'anonymous',
+            creatorName: user ? user.displayName : '익명'
+          });
+          // 로컬 카드의 임시 ID를 파이어베이스 실제 ID로 업데이트
+          const savedLocalCards = JSON.parse(localStorage.getItem('vibe_cards') || '[]');
+          const updatedLocalCards = savedLocalCards.map(c => c.id === tempId ? { ...c, id: firestoreId } : c);
+          setLocalCards(updatedLocalCards);
+          localStorage.setItem('vibe_cards', JSON.stringify(updatedLocalCards));
+        }
+      } catch (firestoreError) {
+        console.warn("Firestore sync failed, saved locally:", firestoreError);
+      }
     } catch (error) {
-      console.error("Firestore Save Error:", error);
-      alert("파이어베이스 실시간 데이터베이스 저장에 실패했습니다.\n\n[상세 에러 내용]\n" + error.message + "\n\n(파이어베이스 Firestore DB가 미생성 상태이거나 보안 규칙(Rules) 문제일 수 있습니다. 콘솔 설정을 확인해주세요.)");
+      console.error("Local Save Error:", error);
+      alert("카드 저장에 실패했습니다: " + error.message);
     } finally {
       setIsRegistering(false);
     }
@@ -622,13 +834,16 @@ export default function App() {
   const previewCardData = {
     id: 'preview',
     title: newTitle || '아름다운 새 카드 제목',
-    author: newAuthor || '원화 작가 스타일',
+    author: newAuthor || '카드 부제목',
     tags: newTags ? newTags.split(/[\s,]+/).filter(Boolean) : ['신화', '로맨스'],
     imageUrl: newImageType === 'seed' 
       ? `https://picsum.photos/seed/${newImageSeed || 'preview'}/400/600` 
       : (newImageUrl || 'https://picsum.photos/seed/preview/400/600'),
     neonColor: newColor,
-    height: 'h-96'
+    height: 'h-96',
+    imageScale: newImageScale,
+    imagePositionX: newImagePositionX,
+    imagePositionY: newImagePositionY
   };
 
   const offsets = [-1, 0, 1];
@@ -794,15 +1009,46 @@ export default function App() {
       <div className={`fixed inset-x-0 bottom-0 top-20 bg-white rounded-t-[40px] shadow-[0_-20px_50px_rgba(0,0,0,0.5)] z-[100] transition-transform duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] flex flex-col ${isModalOpen ? 'translate-y-0' : 'translate-y-full'}`}>
         {activeCard && (
           <>
-            <div className="flex justify-end p-6 pb-0">
+            <div className="flex justify-between items-center p-6 pb-0 select-none">
+              <div className="flex gap-4">
+                {isAdminMode && (
+                  <>
+                    <button 
+                      onClick={() => handleEditCardClick(activeCard)} 
+                      className="cursor-none flex items-center gap-2 text-cyan-600 hover:text-cyan-800 hover:bg-cyan-50 font-bold text-sm transition-all px-5 py-2 border border-cyan-200 hover:border-cyan-400 rounded-xl"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                      카드 수정 (Edit)
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteCardClick(activeCard.id)} 
+                      className="cursor-none flex items-center gap-2 text-red-500 hover:text-red-700 hover:bg-red-50 font-bold text-sm transition-all px-5 py-2 border border-red-200 hover:border-red-400 rounded-xl"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                      카드 삭제 (Delete)
+                    </button>
+                  </>
+                )}
+              </div>
               <button onClick={closeModal} className="cursor-none flex items-center gap-2 text-zinc-400 hover:text-black font-bold text-sm transition-colors px-4 py-2">
                 닫기 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
               </button>
             </div>
             <div className="flex flex-col md:flex-row gap-12 p-10 pt-4 flex-1 overflow-y-auto cursor-none">
               <div className="w-full md:w-1/3 shrink-0">
-                <div className="rounded-3xl overflow-hidden border-4 shadow-2xl" style={{ borderColor: activeCard.neonColor }}>
-                  <img src={activeCard.imageUrl} alt={activeCard.title} className="w-full h-auto object-cover pointer-events-none" />
+                <div 
+                  className="rounded-3xl overflow-hidden border-4 shadow-2xl relative" 
+                  style={{ borderColor: activeCard.neonColor, width: '100%', height: '360px' }}
+                >
+                  <div 
+                    className="w-full h-full bg-cover"
+                    style={{ 
+                      backgroundImage: `url(${activeCard.imageUrl})`,
+                      backgroundPosition: `${activeCard.imagePositionX ?? 50}% ${activeCard.imagePositionY ?? 50}%`,
+                      transform: `scale(${activeCard.imageScale ?? 1.0})`,
+                      transformOrigin: 'center center'
+                    }}
+                  />
                 </div>
               </div>
               <div className="flex flex-col text-black py-4 pointer-events-none">
@@ -811,7 +1057,7 @@ export default function App() {
                   {activeCard.tags.map((tag, idx) => (
                     <span key={idx} className="px-4 py-2 text-sm font-bold bg-zinc-100 rounded-xl text-zinc-600 border border-zinc-200">{tag}</span>
                   ))}
-                  <span className="px-4 py-2 text-sm font-bold bg-zinc-100 rounded-xl text-zinc-600 border border-zinc-200">Author: {activeCard.author}</span>
+                  <span className="px-4 py-2 text-sm font-bold bg-zinc-100 rounded-xl text-zinc-600 border border-zinc-200">{activeCard.author}</span>
                 </div>
                 <div className="text-zinc-600 leading-relaxed font-medium text-lg space-y-4">
                   {activeCard.description ? (
@@ -849,11 +1095,21 @@ export default function App() {
           {/* Left Column: Live Card Preview */}
           <div className="w-full lg:w-[35%] flex flex-col items-center justify-center border-b lg:border-b-0 lg:border-r border-zinc-800/50 pb-8 lg:pb-0 lg:pr-8">
             <span className="text-xs font-black tracking-widest text-zinc-500 mb-6 uppercase">
-              LIVE PREVIEW (Hover or Move Mouse over Card)
+              LIVE PREVIEW (Drag Image to Adjust Position)
             </span>
             <div className="transform scale-[1.05] drop-shadow-[0_20px_50px_rgba(0,0,0,0.8)]">
-              <Card data={previewCardData} onClick={() => {}} />
+              <Card 
+                data={previewCardData} 
+                onClick={() => {}} 
+                onImageAdjust={(x, y) => {
+                  setNewImagePositionX(x);
+                  setNewImagePositionY(y);
+                }}
+              />
             </div>
+            <p className="text-[10px] text-zinc-500 mt-6 text-center leading-relaxed">
+              * 마우스로 카드의 일러스트 부분을 **클릭 후 드래그**하여 자유롭게 위치를 세부 조정할 수 있습니다.
+            </p>
           </div>
 
           {/* Right Column: Creation Form */}
@@ -874,16 +1130,16 @@ export default function App() {
                 />
               </div>
 
-              {/* Author */}
+              {/* Author -> Subtitle */}
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-                  원화가 / 일러스트 스타일 (Author)
+                  부제목 (Subtitle)
                 </label>
                 <input 
                   type="text" 
                   value={newAuthor} 
                   onChange={(e) => setNewAuthor(e.target.value)} 
-                  placeholder="예: 新海誠スタイル (신카이 마코토 스타일)" 
+                  placeholder="예: 아름다운 세상을 향한 여정" 
                   className="w-full bg-zinc-900/40 border border-zinc-800 focus:border-cyan-500 rounded-2xl p-4 text-white placeholder-zinc-600 outline-none transition-colors cursor-auto"
                 />
               </div>
@@ -982,6 +1238,78 @@ export default function App() {
               )}
             </div>
 
+            {/* Image Position & Scale Sliders */}
+            <div className="flex flex-col gap-4 p-5 bg-zinc-900/20 border border-zinc-800/40 rounded-3xl">
+              <label className="text-xs font-bold uppercase tracking-widest text-zinc-400 flex justify-between">
+                <span>이미지 크기 및 위치 미세 조정 (Image Size & Position)</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewImageScale(1.0);
+                    setNewImagePositionX(50);
+                    setNewImagePositionY(50);
+                    playHoverSound();
+                  }}
+                  className="cursor-pointer text-[10px] text-cyan-400 hover:text-cyan-300 font-bold uppercase tracking-wider"
+                >
+                  초기화 (Reset)
+                </button>
+              </label>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Scale Slider */}
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex justify-between">
+                    <span>배율 (Scale)</span>
+                    <span className="text-cyan-400 font-black">{Math.round(newImageScale * 100)}%</span>
+                  </span>
+                  <input 
+                    type="range" 
+                    min="1.0" 
+                    max="3.0" 
+                    step="0.05"
+                    value={newImageScale}
+                    onChange={(e) => setNewImageScale(parseFloat(e.target.value))}
+                    className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                  />
+                </div>
+
+                {/* Position X Slider */}
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex justify-between">
+                    <span>가로 위치 (X Offset)</span>
+                    <span className="text-cyan-400 font-black">{Math.round(newImagePositionX)}%</span>
+                  </span>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="100" 
+                    step="1"
+                    value={newImagePositionX}
+                    onChange={(e) => setNewImagePositionX(parseInt(e.target.value))}
+                    className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                  />
+                </div>
+
+                {/* Position Y Slider */}
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex justify-between">
+                    <span>세로 위치 (Y Offset)</span>
+                    <span className="text-cyan-400 font-black">{Math.round(newImagePositionY)}%</span>
+                  </span>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="100" 
+                    step="1"
+                    value={newImagePositionY}
+                    onChange={(e) => setNewImagePositionY(parseInt(e.target.value))}
+                    className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Description */}
             <div className="flex flex-col gap-2">
               <label className="text-xs font-bold uppercase tracking-widest text-zinc-400">
@@ -1015,10 +1343,10 @@ export default function App() {
               }`}
             >
               {isRegistering 
-                ? '아카이브 카드를 실시간 저장 중...' 
+                ? (editingCardId ? '아카이브 카드를 실시간 수정 중...' : '아카이브 카드를 실시간 저장 중...') 
                 : isSaveSuccess
-                  ? '🎉 저장 완료! (클릭하여 적용된 화면 확인하기)'
-                  : '카드로 아카이브 신규 등록하기 (Register Card)'}
+                  ? (editingCardId ? '🎉 수정 완료! (클릭하여 적용된 화면 확인하기)' : '🎉 저장 완료! (클릭하여 적용된 화면 확인하기)')
+                  : (editingCardId ? '카드로 아카이브 수정 반영하기 (Update Card)' : '카드로 아카이브 신규 등록하기 (Register Card)')}
             </button>
           </form>
         </div>

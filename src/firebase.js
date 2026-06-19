@@ -16,7 +16,10 @@ import {
   getDocs, 
   query, 
   orderBy,
-  onSnapshot
+  onSnapshot,
+  doc,
+  updateDoc,
+  deleteDoc
 } from 'firebase/firestore';
 
 /**
@@ -33,6 +36,8 @@ const firebaseConfig = {
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "YOUR_MESSAGING_SENDER_ID",
   appId: import.meta.env.VITE_FIREBASE_APP_ID || "YOUR_APP_ID"
 };
+
+console.log("Loaded Firebase API Key:", firebaseConfig.apiKey);
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -132,6 +137,32 @@ export const getCardsFromFirestore = async () => {
     return fetchedCards;
   } catch (error) {
     console.error("Error fetching cards from Firestore:", error);
+    throw error;
+  }
+};
+
+/**
+ * 기존 아카이브 카드를 Firestore에서 업데이트합니다.
+ */
+export const updateCardInFirestore = async (cardId, updatedData) => {
+  try {
+    const cardRef = doc(db, 'cards', cardId);
+    await updateDoc(cardRef, updatedData);
+  } catch (error) {
+    console.error("Error updating card in Firestore:", error);
+    throw error;
+  }
+};
+
+/**
+ * 기존 아카이브 카드를 Firestore에서 삭제합니다.
+ */
+export const deleteCardFromFirestore = async (cardId) => {
+  try {
+    const cardRef = doc(db, 'cards', cardId);
+    await deleteDoc(cardRef);
+  } catch (error) {
+    console.error("Error deleting card in Firestore:", error);
     throw error;
   }
 };
