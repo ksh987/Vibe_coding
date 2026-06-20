@@ -124,9 +124,13 @@ const Card = ({ data, onClick, onImageAdjust }) => {
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUpOrLeave}
       onMouseLeave={handleMouseUpOrLeave}
-      onMouseEnter={playHoverSound}
+      onMouseEnter={() => {
+        if (!data.id.startsWith('mock-')) {
+          playHoverSound();
+        }
+      }}
       onClick={(e) => {
-        if (!isDraggingImage.current) {
+        if (!isDraggingImage.current && !data.id.startsWith('mock-')) {
           onClick(data);
         }
       }}
@@ -135,7 +139,7 @@ const Card = ({ data, onClick, onImageAdjust }) => {
         width: `${CARD_W}px`, 
         height: `${CARD_H}px`, 
         boxShadow: `0 0 40px -5px ${data.neonColor}50, 0 15px 35px -10px rgba(0,0,0,0.8)`,
-        cursor: onImageAdjust ? 'move' : 'pointer'
+        cursor: onImageAdjust ? 'move' : (data.id.startsWith('mock-') ? 'default' : 'pointer')
       }}
     >
       <div className="relative z-10 w-full h-full bg-[#111113] overflow-hidden flex flex-col justify-end p-6">
@@ -246,6 +250,8 @@ export default function App() {
 
   const [viewMode, setViewMode] = useState('grid');
   const viewModeRef = useRef(viewMode);
+  const [filterGame, setFilterGame] = useState(false);
+  const [filterAni, setFilterAni] = useState(false);
   const [activeCard, setActiveCard] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -299,9 +305,27 @@ export default function App() {
   const cards = combinedCardsList.length > 0
     ? [...combinedCardsList, ...CARDS_DATA.slice(0, Math.max(0, INITIAL_COLS * INITIAL_ROWS - combinedCardsList.length))]
     : CARDS_DATA;
+
+  const filteredCards = (() => {
+    if ((filterGame && filterAni) || (!filterGame && !filterAni)) {
+      return cards;
+    }
+    return cards.filter(card => {
+      const firstTag = card.tags && card.tags[0];
+      if (!firstTag) return false;
+      if (filterGame) {
+        return firstTag === '게임';
+      }
+      if (filterAni) {
+        return firstTag === '만화' || firstTag === '애니';
+      }
+      return true;
+    });
+  })();
+
   // Infinite grid layouts calculation based on reactive cards count
   const dynamicCols = 6;
-  const dynamicRows = Math.ceil(cards.length / dynamicCols) || 1;
+  const dynamicRows = Math.ceil(filteredCards.length / dynamicCols) || 1;
   const dynamicChunkWidth = dynamicCols * (CARD_W + GAP);
   const dynamicChunkHeight = dynamicRows * (CARD_H + GAP);
 
@@ -377,6 +401,10 @@ export default function App() {
   }, [dynamicChunkWidth, dynamicChunkHeight]);
 
   useEffect(() => { viewModeRef.current = viewMode; }, [viewMode]);
+
+  useEffect(() => {
+    target.current = { x: 0, y: 0 };
+  }, [filterGame, filterAni]);
 
   const openModal = (card) => {
     setActiveCard(card);
@@ -903,7 +931,7 @@ export default function App() {
               offsets.map((x) => (
                 <BoardChunk 
                   key={`${x}-${y}`} 
-                  cards={cards}
+                  cards={filteredCards}
                   cols={dynamicCols}
                   chunkWidth={dynamicChunkWidth}
                   chunkHeight={dynamicChunkHeight}
@@ -921,7 +949,7 @@ export default function App() {
       </div>
 
       {/* --- LIST VIEW --- */}
-      <ListView data={cards} isVisible={viewMode === 'list'} onCardClick={openModal} />
+      <ListView data={filteredCards.filter(c => !c.id.startsWith('mock-'))} isVisible={viewMode === 'list'} onCardClick={openModal} />
 
       {/* --- UI OVERLAYS --- */}
       <div className={`transition-opacity duration-1000 ${introStep === 2 ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
@@ -999,8 +1027,28 @@ export default function App() {
           
           <div className="flex items-center gap-3 p-2 pl-8 bg-gradient-to-r from-zinc-800/90 to-[#1a1a1c]/90 backdrop-blur-2xl border border-white/20 rounded-full shadow-[0_0_30px_rgba(0,0,0,0.8)]">
             <span className="text-white/80 font-bold text-sm tracking-widest mr-2">絞り込み</span>
-            <button onMouseEnter={playHoverSound} className="cursor-none px-6 py-2.5 rounded-full bg-white text-black font-black text-sm tracking-widest shadow-lg transition-transform hover:scale-105 active:scale-95">게임</button>
-            <button onMouseEnter={playHoverSound} className="cursor-none px-6 py-2.5 rounded-full bg-white text-black font-black text-sm tracking-widest shadow-lg transition-transform hover:scale-105 active:scale-95">애니</button>
+            <button 
+              onMouseEnter={playHoverSound} 
+              onClick={() => setFilterGame(prev => !prev)}
+              className={`cursor-none px-6 py-2.5 rounded-full font-black text-sm tracking-widest transition-all duration-300 hover:scale-105 active:scale-95 ${
+                filterGame 
+                  ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.5)]' 
+                  : 'bg-zinc-950/60 text-zinc-400 border border-white/5 hover:bg-zinc-900/80 hover:text-white'
+              }`}
+            >
+              게임
+            </button>
+            <button 
+              onMouseEnter={playHoverSound} 
+              onClick={() => setFilterAni(prev => !prev)}
+              className={`cursor-none px-6 py-2.5 rounded-full font-black text-sm tracking-widest transition-all duration-300 hover:scale-105 active:scale-95 ${
+                filterAni 
+                  ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.5)]' 
+                  : 'bg-zinc-950/60 text-zinc-400 border border-white/5 hover:bg-zinc-900/80 hover:text-white'
+              }`}
+            >
+              애니
+            </button>
           </div>
         </div>
       </div>
